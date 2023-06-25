@@ -1,4 +1,4 @@
-import { createCanvas } from 'canvas';
+import { createCanvas, loadImage } from 'canvas';
 
 export type PieceColor = 'white' | 'black';
 export type File = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h';
@@ -6,12 +6,12 @@ export type Row<T> = Record<File, T | null>;
 export type Board = Row<Piece>[];
 
 export enum PieceType {
-  pawn,
-  rook,
-  knight,
-  bishop,
-  king,
-  queen,
+  pawn = 'pawn',
+  rook = 'rook',
+  knight = 'knight',
+  bishop = 'bishop',
+  king = 'king',
+  queen = 'queen',
 }
 
 export class Piece {
@@ -93,7 +93,9 @@ export default class ChessGame {
     ];
   }
 
-  generateBoardCanvasPNGData(perspectiveColor: PieceColor) {
+  async generateBoardCanvasPNGData(
+    perspectiveColor: PieceColor
+  ): Promise<Buffer> {
     const FILES = 8;
     const RANKS = 8;
 
@@ -106,8 +108,11 @@ export default class ChessGame {
     const RANK_X_PADDING = 5;
     const RANK_Y_PADDING = 15;
 
-    const FILE_X_PADDING = 15;
+    const FILE_X_PADDING = 10;
     const FILE_Y_PADDING = 5;
+
+    const PIECE_WIDTH = 45;
+    const PIECE_HEIGHT = 45;
 
     const canvas = createCanvas(BOARD_WIDTH, BOARD_HEIGHT);
     const ctx = canvas.getContext('2d');
@@ -153,14 +158,17 @@ export default class ChessGame {
           continue;
         }
 
-        switch (piece.type) {
-          case PieceType.pawn:
-          case PieceType.rook:
-          case PieceType.knight:
-          case PieceType.bishop:
-          case PieceType.king:
-          case PieceType.queen:
-        }
+        const image = await loadImage(
+          `assets/chess-pieces/${piece.color}/${piece.type}.svg`
+        );
+
+        ctx.drawImage(
+          image,
+          squareX + SQUARE_WIDTH / 2 - PIECE_WIDTH / 2,
+          squareY + SQUARE_HEIGHT / 2 - PIECE_WIDTH / 2,
+          PIECE_WIDTH,
+          PIECE_HEIGHT
+        );
       }
     }
 

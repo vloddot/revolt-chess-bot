@@ -1,6 +1,7 @@
 import { Channel, Client, Message } from 'revolt.js';
 import { prompt } from '$lib/helpers';
 import ChessGame, { PieceColor } from '$lib/ChessGame';
+import AttachmentUploader from '$lib/AttachmentUploader';
 
 export async function playChessCommand(
   client: Client,
@@ -115,7 +116,7 @@ export async function playChessCommand(
     }
 
     if (isYes) {
-      await startChessGame(player1ID, player2ID, player1Color, channel);
+      await startChessGame(client, player1ID, player2ID, player1Color, channel);
       break;
     }
 
@@ -129,6 +130,7 @@ export async function playChessCommand(
 }
 
 async function startChessGame(
+  client: Client,
   player1ID: string,
   player2ID: string,
   player1Color: PieceColor,
@@ -144,7 +146,15 @@ async function startChessGame(
 
   const turn = player1Color === 'white' ? 1 : 2;
 
-  chessGame.generateBoardCanvasPNGData(
+  const png = await chessGame.generateBoardCanvasPNGData(
     turn === 1 ? player1Color : player2Color
   );
+
+  const attachmentUploader = new AttachmentUploader(client);
+
+  const attachment = await attachmentUploader.upload(png, 'chess.png');
+
+  await channel?.sendMessage({
+    attachments: [attachment],
+  });
 }

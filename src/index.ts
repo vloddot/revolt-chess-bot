@@ -8,15 +8,8 @@ dotenv.config();
 
 const client = new Client();
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.info(`Logged in as ${client.user?.username ?? '[logging in...]'}`);
-  fs.writeFileSync(
-    'test.png',
-    new ChessGame().generateBoardCanvasPNGData('white'),
-    {
-      encoding: 'binary',
-    }
-  );
 });
 
 client.on('message', async (message) => {
