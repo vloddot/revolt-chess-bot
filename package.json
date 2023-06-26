@@ -4,8 +4,8 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "watch": "tsc --watch",
-        "start": "nodemon -r tsconfig-paths/register src/index.ts"
+        "start": "nodemon -r tsconfig-paths/register src/index.ts",
+        "build": "tsc"
     },
     "keywords": [],
     "author": "",

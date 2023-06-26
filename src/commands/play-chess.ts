@@ -1,6 +1,6 @@
 import { Channel, Client, Message } from 'revolt.js';
 import { prompt } from '$lib/helpers';
-import ChessGame, { PieceColor } from '$lib/ChessGame';
+import ChessGame, { PieceColor, PieceType } from '$lib/ChessGame';
 import AttachmentUploader from '$lib/AttachmentUploader';
 
 export async function playChessCommand(
@@ -28,10 +28,10 @@ export async function playChessCommand(
   async function promptColor(): Promise<PieceColor> {
     while (true) {
       const message = await prompt(
-        'What color do you want to play as? Expect either "White", "Black", or "Random"',
         client,
         channel,
-        player1ID
+        player1ID,
+        'What color do you want to play as? Expect either "White", "Black", or "Random"'
       );
 
       if (message.content === null) {
@@ -73,10 +73,10 @@ export async function playChessCommand(
   if (message.mention_ids === null) {
     while (player2ID === undefined) {
       const message = await prompt(
-        'Who do you want to play against?',
         client,
         channel,
-        player1ID
+        player1ID,
+        'Who do you want to play against?'
       );
 
       if (
@@ -91,7 +91,7 @@ export async function playChessCommand(
       player2ID = message.mention_ids[0];
     }
   } else if (message.mention_ids.length !== 1) {
-    await message.channel?.sendMessage(
+    await channel?.sendMessage(
       'Expected only one person to play against.'
     );
     return;
@@ -101,10 +101,10 @@ export async function playChessCommand(
 
   while (true) {
     const promptMessage = await prompt(
-      `Do you want to play against <@${player1ID}>, <@${player2ID}>?`,
       client,
       channel,
-      player2ID
+      player2ID,
+      `Do you want to play against <@${player1ID}>, <@${player2ID}>?`
     );
 
     const isYes = promptMessage.content?.match(/\b(yes|agree)\b/gi);
@@ -144,17 +144,65 @@ async function startChessGame(
 
   const chessGame = new ChessGame();
 
-  const turn = player1Color === 'white' ? 1 : 2;
-
-  const png = await chessGame.generateBoardCanvasPNGData(
-    turn === 1 ? player1Color : player2Color
-  );
-
   const attachmentUploader = new AttachmentUploader(client);
 
-  const attachment = await attachmentUploader.upload(png, 'chess.png');
+  let currentTurn = player1Color === 'white' ? 0 : 1;
 
-  await channel?.sendMessage({
-    attachments: [attachment],
-  });
+  while (true) {
+    const playerID = currentTurn === 0 ? player1ID : player2ID;
+
+    const png = await chessGame.generateBoardCanvasPNGData(
+      currentTurn === 0 ? player1Color : player2Color
+    );
+
+    const attachment = await attachmentUploader.upload(png, 'chess.png');
+
+    await channel?.sendMessage(`It's your turn, <@${playerID}>`);
+
+    await channel?.sendMessage({
+      attachments: [attachment],
+    });
+
+    const message = await prompt(client, channel, playerID);
+
+    if (message.content === null) {
+      await channel?.sendMessage(
+        `You must send a message in Pure Coordinate notation, meaning put the starting square first, then the ending square.
+        Like this: e2e4. Even castling is put in as something like e1g1 instead of O-O or O-O-O.
+        Some other examples:
+          g1f3,
+          g4h4q (pawn promotion, can use any of "q", "r", "b", or "n" to determine what the pawn is promoting to).`
+      );
+      continue;
+    }
+
+    const [start, end] = [
+      message.content.slice(0, 2),
+      message.content.slice(2, 4),
+    ];
+
+    let promotion: PieceType | undefined;
+    if (message.content.length === 5) {
+      const promotionMapping = {
+        r: PieceType.rook,
+        b: PieceType.bishop,
+        n: PieceType.knight,
+        q: PieceType.queen,
+      };
+
+      promotion =
+        promotionMapping[
+          message.content[4].toLowerCase() as keyof typeof promotionMapping
+        ];
+    }
+
+    try {
+      chessGame.makeMove(start, end, promotion);
+    } catch (error) {
+      await message.channel?.sendMessage(`This is not a valid move: ${error}`);
+      continue;
+    }
+
+    currentTurn = (currentTurn + 1) % 2;
+  }
 }

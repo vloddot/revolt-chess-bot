@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "nodemon",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "request": "launch",
+            "restart": true,
+            "runtimeExecutable": "${workspaceFolder}/node_modules/nodemon/bin/nodemon.js",
+            "args": ["-r", "tsconfig-paths/register", "src/index.ts"],
+            "type": "node"
+        }
+    ]
+}

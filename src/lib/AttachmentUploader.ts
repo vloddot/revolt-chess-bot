@@ -46,7 +46,6 @@ export default class Uploader {
       filename,
     });
 
-    console.log(formData);
     return new Promise((resolve, reject) => {
       axios
         .post(`${this.url}/${tag}`, formData, {

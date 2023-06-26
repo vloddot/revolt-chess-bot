@@ -1,8 +1,6 @@
-import fs from 'fs';
 import { Client } from 'revolt.js';
 import { playChessCommand } from '$commands/play-chess';
 import dotenv from 'dotenv';
-import ChessGame from '$lib/ChessGame';
 
 dotenv.config();
 
