@@ -26,7 +26,7 @@ client.on('message', async (message) => {
 
 const token = process.env.BOT_TOKEN;
 if (token === undefined) {
-  console.error('BOT_TOKEN is undefined. Make sure it is defined in `.env`.');
+  console.error('BOT_TOKEN is undefined. Make sure it is defined in the `.env` file.');
   process.exit(1);
 }
 

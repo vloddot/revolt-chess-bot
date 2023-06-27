@@ -1,7 +1,6 @@
 import { Channel, Client, Message } from 'revolt.js';
-import { prompt } from '$lib/helpers';
+import { prompt, uploadToAutumn } from '$lib/helpers';
 import ChessGame, { PieceColor, PieceType } from '$lib/ChessGame';
-import AttachmentUploader from '$lib/AttachmentUploader';
 
 export async function playChessCommand(
   client: Client,
@@ -91,9 +90,7 @@ export async function playChessCommand(
       player2ID = message.mention_ids[0];
     }
   } else if (message.mention_ids.length !== 1) {
-    await channel?.sendMessage(
-      'Expected only one person to play against.'
-    );
+    await channel?.sendMessage('Expected only one person to play against.');
     return;
   } else {
     player2ID = message.mention_ids[0];
@@ -144,26 +141,26 @@ async function startChessGame(
 
   const chessGame = new ChessGame();
 
-  const attachmentUploader = new AttachmentUploader(client);
-
-  let currentTurn = player1Color === 'white' ? 0 : 1;
+  let currentTurn = player1Color === 'white' ? 1 : 2;
 
   while (true) {
-    const playerID = currentTurn === 0 ? player1ID : player2ID;
+    const playerID = currentTurn === 1 ? player1ID : player2ID;
 
     const png = await chessGame.generateBoardCanvasPNGData(
-      currentTurn === 0 ? player1Color : player2Color
+      currentTurn === 1 ? player1Color : player2Color
     );
 
-    const attachment = await attachmentUploader.upload(png, 'chess.png');
+    const attachment = await uploadToAutumn(
+      client,
+      png,
+      'chess.png',
+      'image/png'
+    );
 
-    await channel?.sendMessage(`It's your turn, <@${playerID}>`);
-
-    await channel?.sendMessage({
+    const message = await prompt(client, channel, playerID, {
+      content: `It's your turn, <@${playerID}>.`,
       attachments: [attachment],
     });
-
-    const message = await prompt(client, channel, playerID);
 
     if (message.content === null) {
       await channel?.sendMessage(
@@ -203,6 +200,6 @@ async function startChessGame(
       continue;
     }
 
-    currentTurn = (currentTurn + 1) % 2;
+    currentTurn = currentTurn === 1 ? 2 : 1;
   }
 }

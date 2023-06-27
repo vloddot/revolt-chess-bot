@@ -1,26 +1,58 @@
+import axios from 'axios';
+import FormData from 'form-data';
 import { Channel, Client, Message } from 'revolt.js';
+import type { DataMessageSend } from './types';
 
 export async function prompt(
   client: Client,
   channel?: Channel,
-  expectedID?: string,
-  prompt?: string
+  expectedUserID?: string,
+  prompt?: string | DataMessageSend
 ): Promise<Message> {
-  if (prompt !== undefined) {
-    await channel?.sendMessage(prompt);
-  }
-
-  function handleEvent(message: Message, resolve: (value: Message) => void) {
-    if (expectedID === undefined || expectedID === message.author_id) {
-      resolve(message);
+  return new Promise((resolve: (value: Message) => void) => {
+    if (prompt !== undefined) {
+      channel?.sendMessage(prompt);
     }
 
-    client.removeListener('message', promise);
-  }
+    client.on('message', async function handler(message: Message) {
+      process.stdout.write('got message');
+      if (expectedUserID === undefined || expectedUserID === message.author_id) {
+        console.log(' is expected');
+        console.log('------------------')
+        client.off('message', handler);
+        resolve(message);
+      }
+      process.stdout.write('\n');
+    });
+  });
+}
 
-  function promise(resolve: (value: Message) => void) {
-    client.on('message', (message) => handleEvent(message, resolve));
-  }
+export async function uploadToAutumn(
+  client: Client,
+  contents: string | Buffer,
+  filename: string,
+  contentType: string,
+  tag = 'attachments'
+): Promise<string> {
+  const formData = new FormData();
 
-  return new Promise(promise);
+  formData.append('file', contents, {
+    filename,
+  });
+
+  return new Promise((resolve, reject) => {
+    if (!client.configuration?.features.autumn.enabled) {
+      reject('Autumn support is not enabled.');
+    }
+
+    axios
+      .post(`${client.configuration?.features.autumn.url}/${tag}`, formData, {
+        method: 'POST',
+        headers: {
+          'Content-Type': contentType,
+        },
+      })
+      .then((response) => resolve(response.data.id))
+      .catch((error) => reject(error));
+  });
 }
