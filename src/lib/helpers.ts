@@ -24,8 +24,8 @@ export async function prompt(
 }
 
 export async function promptYesOrNo(
-  client: Client,
   callback: (yes: boolean) => unknown,
+  client: Client,
   channel?: Channel,
   expectedUserID?: string,
   promptMessage?: string | DataMessageSend

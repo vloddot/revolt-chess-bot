@@ -5,7 +5,7 @@ import ChessGame, { PieceColor, PieceType } from '$lib/ChessGame';
 import { Engine } from 'node-uci';
 
 export async function playChessCommand(client: Client, message: Message, args: string[]) {
-  const messageID = message._id;
+  const originalMessageID = message._id;
   const player1ID = message.author_id;
   const channel = message.channel;
   let player2ID: string | undefined;
@@ -36,7 +36,7 @@ export async function playChessCommand(client: Client, message: Message, args: s
     while (true) {
       const message = await prompt(client, channel, player1ID, {
         content: 'What color do you want to play as? Expect either "White", "Black", or "Random".',
-        replies: [{ id: messageID, mention: false }],
+        replies: [{ id: originalMessageID, mention: false }],
       });
 
       if (message.content === null) {
@@ -77,7 +77,7 @@ export async function playChessCommand(client: Client, message: Message, args: s
     while (player2ID === undefined) {
       const message = await prompt(client, channel, player1ID, {
         content: 'Who do you want to play against?',
-        replies: [{ id: messageID, mention: false }],
+        replies: [{ id: originalMessageID, mention: false }],
       });
 
       if (
@@ -104,28 +104,62 @@ export async function playChessCommand(client: Client, message: Message, args: s
     player2ID = message.mention_ids[0];
   }
 
+  const stockfishOptions: StockfishOptions = {
+    Threads: os.cpus().length.toString(),
+    UCIChess960: 'false',
+    UCIElo: '150',
+    Hash: '16',
+    UCILimitStrength: 'true',
+    MultiPV: '1',
+    Ponder: 'true',
+    SkillLevel: '20',
+    SlowMover: '100',
+    UseNNUE: 'true',
+  };
+
   if (player2ID === client.user?._id) {
     await promptYesOrNo(
-      client,
       async (yes) => {
         if (!yes) {
-          await channel?.sendMessage('Aborting chess game.');
+          return;
         }
 
-        await startStockfishChessGame(client, player1ID, player2ID, player1Color, channel);
+        for (const [key, value] of Object.entries(stockfishOptions)) {
+          while (true) {
+            const message = await prompt(
+              client,
+              channel,
+              player1ID,
+              `What is the value for "${key}"? the default value is ${value}. Type "-1" to use the default value.`
+            );
+
+            if (message.content === null) {
+              await channel?.sendMessage(`Expected message content.`);
+              continue;
+            }
+
+            if (message.content !== '-1') {
+              stockfishOptions[key as keyof StockfishOptions] = message.content;
+            }
+
+            break;
+          }
+        }
       },
+      client,
       channel,
       player1ID,
       {
-        content: 'Are you sure you want to play against a bot?',
+        content:
+          'Do you want to configure the game against the bot? I use the same settings as Stockfish.',
         replies: [{ id: message._id, mention: false }],
       }
     );
+    await startStockfishChessGame(client, player1ID, player1Color, channel, stockfishOptions);
     return;
   }
 
   await promptYesOrNo(
-    client,
     async (yes) => {
       if (!yes) {
         await channel?.sendMessage('Aborting chess game.');
@@ -138,6 +172,7 @@ export async function playChessCommand(client: Client, message: Message, args: s
 
       await startChessGame(client, player1ID, player2ID, player1Color, channel);
     },
+    client,
     channel,
     player1ID,
     `Do you want to play against <@${player1ID}>, <@${player2ID}>?`
@@ -212,27 +247,45 @@ async function startChessGame(
   }
 }
 
+interface StockfishOptions {
+  Threads: string;
+  Hash: string;
+  Ponder: string;
+  MultiPV: string;
+  UseNNUE: string;
+  UCIChess960: string;
+  UCILimitStrength: string;
+  UCIElo: string;
+  SkillLevel: string;
+  SlowMover: string;
+}
+
 async function startStockfishChessGame(
   client: Client,
   playerID: string,
-  botID: string | undefined,
   player1Color: PieceColor,
-  channel: Channel | undefined
+  channel: Channel | undefined,
+  options: StockfishOptions
 ) {
   const engine = new Engine('stockfish');
 
   await engine.init();
-  await engine.setoption('Threads', os.cpus().length.toString(10));
-  await engine.setoption('Ponder', 'true');
-  await engine.setoption('UCI_Elo', '0');
-  await engine.setoption('MultiPV', '1');
-  await engine.setoption('UCI_LimitStrength', 'true');
+  await engine.setoption('Threads', options.Threads);
+  await engine.setoption('Hash', options.Hash);
+  await engine.setoption('Ponder', options.Ponder);
+  await engine.setoption('MultiPV', options.MultiPV);
+  await engine.setoption('Use NNUE', options.UseNNUE);
+  await engine.setoption('UCI_Chess960', options.UCIChess960);
+  await engine.setoption('UCI_LimitStrength', options.UCILimitStrength);
+  await engine.setoption('UCI_Elo', options.UCIElo);
+  await engine.setoption('Skill Level', options.SkillLevel);
+  await engine.setoption('Slow Mover', options.SlowMover);
   await engine.isready();
 
   const player2Color = player1Color === 'white' ? 'black' : 'white';
 
   await channel?.sendMessage(
-    `Starting chess game between <@${playerID}> (${player1Color}) and <@${botID}> (${player2Color})`
+    `Starting chess game between <@${playerID}> (${player1Color}) and <@${client.user?._id}> (${player2Color})`
   );
 
   const chessGame = new ChessGame();
