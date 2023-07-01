@@ -7,24 +7,43 @@ export async function prompt(
   client: Client,
   channel?: Channel,
   expectedUserID?: string,
-  prompt?: string | DataMessageSend
+  promptMessage?: string | DataMessageSend
 ): Promise<Message> {
   return new Promise((resolve: (value: Message) => void) => {
-    if (prompt !== undefined) {
-      channel?.sendMessage(prompt);
+    if (promptMessage !== undefined) {
+      channel?.sendMessage(promptMessage);
     }
 
     client.on('message', async function handler(message: Message) {
-      process.stdout.write('got message');
       if (expectedUserID === undefined || expectedUserID === message.author_id) {
-        console.log(' is expected');
-        console.log('------------------')
         client.off('message', handler);
         resolve(message);
       }
-      process.stdout.write('\n');
     });
   });
+}
+
+export async function promptYesOrNo(
+  client: Client,
+  callback: (yes: boolean) => unknown,
+  channel?: Channel,
+  expectedUserID?: string,
+  promptMessage?: string | DataMessageSend
+) {
+  while (true) {
+    const message = await prompt(client, channel, expectedUserID, promptMessage);
+
+    const isYes = Boolean(message.content?.match(/\b(yes|agree)\b/gi));
+    const isNo = Boolean(message.content?.match(/\b(no|abort)\b/gi));
+
+    if (isYes === isNo) {
+      await channel?.sendMessage('Expected either yes or no.');
+      continue;
+    }
+
+    await callback(isYes);
+    break;
+  }
 }
 
 export async function uploadToAutumn(

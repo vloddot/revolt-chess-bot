@@ -16,3 +16,9 @@ indent_size = 2
 
 [*.{m,c}{j,t}s]
 indent_size = 2
+
+[*.{test,spec}.{m,c}{j,t}s]
+indent_size = 2
+
+[*.{test,spec}.{j,t}s]
+indent_size = 2

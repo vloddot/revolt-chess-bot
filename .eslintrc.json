@@ -1,13 +1,22 @@
 {
-  "env": {
-    "browser": false,
-    "es2021": true
-  },
-  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
-  "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint"],
-  "root": true,
-  "rules": {
-    "no-constant-condition": "off"
-  }
+    "env": {
+        "browser": false,
+        "es2021": true
+    },
+    "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+    "parser": "@typescript-eslint/parser",
+    "plugins": ["@typescript-eslint"],
+    "root": true,
+    "rules": {
+        "no-constant-condition": "off",
+        "no-console": "warn",
+        "block-scoped-var": "warn",
+        "camelcase": "warn",
+        "class-methods-use-this": "warn",
+        "complexity": "warn",
+        "dot-notation": "warn",
+        "eqeqeq": "warn",
+        "for-direction": "warn",
+        "no-else-return": "warn"
+    }
 }

@@ -9,6 +9,7 @@
             "$lib/*": ["src/lib/*"],
             "$commands/*": ["src/commands/*"]
         },
+        "resolveJsonModule": true,
         "outDir": "./dist",
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,

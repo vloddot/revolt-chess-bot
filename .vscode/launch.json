@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "nodemon",
+            "name": "Debug Application",
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
             "request": "launch",
