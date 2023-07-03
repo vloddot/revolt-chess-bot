@@ -1,22 +1,25 @@
+import { mkdir, writeFile } from 'fs/promises';
 import { Client } from 'revolt.js';
-import { playChessCommand } from '$commands/play-chess';
+import playChessCommand from '$commands/play-chess';
 import dotenv from 'dotenv';
+import ChessGame from '$lib/ChessGame';
+import { existsSync } from 'fs';
+import helpCommand from '$commands/help';
 
 export interface StartBotOptions {
-  readyCallback?(client: Client): unknown;
+  onready?(client: Client): unknown;
 }
 
 export default async function startBot(token: string, options?: StartBotOptions): Promise<Client> {
   const client = new Client();
 
   client.once('ready', async () => {
-    if (options?.readyCallback === undefined) {
-      // eslint-disable-next-line no-console
-      console.info(`Logged in as ${client.user?.username ?? '[logging in...]'}`);
-      return;
-    }
+    // eslint-disable-next-line no-console
+    console.info(`Logged in as ${client.user?.username ?? '[logging in...]'}`);
 
-    await options.readyCallback(client);
+    if (options?.onready !== undefined) {
+      await options?.onready(client);
+    }
   });
 
   client.on('message', async (message) => {
@@ -28,8 +31,13 @@ export default async function startBot(token: string, options?: StartBotOptions)
 
     const command = args[0];
 
-    if (command === '/play-chess') {
-      await playChessCommand(client, message, args);
+    switch (command) {
+      case '/play-chess':
+        await playChessCommand(client, message, args);
+        break;
+      case '/help':
+        await helpCommand(client, message, args);
+        break;
     }
   });
 
@@ -45,5 +53,13 @@ if (require.main?.id === module.id) {
     process.exit(1);
   }
 
-  startBot(process.env.BOT_TOKEN);
+  startBot(process.env.BOT_TOKEN, {
+    async onready() {
+      if (!existsSync('.temp')) {
+        await mkdir('.temp');
+      }
+
+      await writeFile('.temp/test.png', await new ChessGame().generateBoardPNG('white'));
+    },
+  });
 }

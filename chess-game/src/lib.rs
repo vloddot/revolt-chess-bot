@@ -52,9 +52,11 @@ pub enum Piece {
     BlackKing,
 }
 
+#[wasm_bindgen]
 pub enum MoveResult {
     ValidMove,
     InvalidMove,
+    Stalemate,
     Check,
     Checkmate,
 }
@@ -88,8 +90,22 @@ impl ChessGame {
     /// game.apply_move("e7e8q") === false; // move cannot be applied when the board is at the starting position, this adds a new character for the promotion of the pawn moving from e7 to e8
     /// ```
     #[wasm_bindgen]
-    pub fn apply_move(&mut self, uci_move: &str) -> bool {
-        self.board.apply_uci_move(uci_move)
+    pub fn apply_move(&mut self, uci_move: &str) -> MoveResult {
+        let valid = self.board.apply_uci_move(uci_move);
+
+        if !valid {
+            return MoveResult::InvalidMove;
+        }
+
+        if self.board.checkmate() {
+            MoveResult::Checkmate
+        } else if self.board.in_check() {
+            MoveResult::Check
+        } else if self.board.stalemate() {
+            MoveResult::Stalemate
+        } else {
+            MoveResult::ValidMove
+        }
     }
 }
 
