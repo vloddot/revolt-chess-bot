@@ -29,7 +29,7 @@ export async function promptYesOrNo(
   channel?: Channel,
   expectedUserID?: string,
   promptMessage?: string | DataMessageSend
-) {
+): Promise<void> {
   while (true) {
     const message = await prompt(client, channel, expectedUserID, promptMessage);
 

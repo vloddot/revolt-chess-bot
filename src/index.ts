@@ -1,10 +1,9 @@
-import { mkdir, writeFile } from 'fs/promises';
 import { Client } from 'revolt.js';
 import playChessCommand from '$commands/play-chess';
 import dotenv from 'dotenv';
-import ChessGame from '$lib/ChessGame';
-import { existsSync } from 'fs';
 import helpCommand from '$commands/help';
+import { ChessGame, Player } from 'chess-game/pkg/chess_game';
+import { readFile, writeFile } from 'fs/promises';
 
 export interface StartBotOptions {
   onready?(client: Client): unknown;
@@ -14,7 +13,6 @@ export default async function startBot(token: string, options?: StartBotOptions)
   const client = new Client();
 
   client.once('ready', async () => {
-    // eslint-disable-next-line no-console
     console.info(`Logged in as ${client.user?.username ?? '[logging in...]'}`);
 
     if (options?.onready !== undefined) {
@@ -48,18 +46,18 @@ export default async function startBot(token: string, options?: StartBotOptions)
 if (require.main?.id === module.id) {
   dotenv.config();
   if (process.env.BOT_TOKEN === undefined) {
-    // eslint-disable-next-line no-console
     console.error('BOT_TOKEN is undefined. Make sure it is defined in the `.env` file.');
     process.exit(1);
   }
 
   startBot(process.env.BOT_TOKEN, {
     async onready() {
-      if (!existsSync('.temp')) {
-        await mkdir('.temp');
-      }
+      const game = new ChessGame();
 
-      await writeFile('.temp/test.png', await new ChessGame().generateBoardPNG('white'));
+      await writeFile(
+        '.temp/test.png',
+        game.generateBoardPNG(Player.White, await readFile('OpenSans.ttf'))
+      );
     },
   });
 }

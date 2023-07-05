@@ -3,7 +3,7 @@ import { Client, Message } from 'revolt.js';
 
 const COMMAND_HELP_DIR = 'command-help';
 
-export default async function helpCommand(client: Client, message: Message, args: string[]) {
+export default async function helpCommand(client: Client, message: Message, args: string[]): Promise<void> {
   if (args.length === 1) {
     const helpFileNames: string[] = (await fs.readdir(COMMAND_HELP_DIR)).filter((name) =>
       name.endsWith('.short.txt')
@@ -16,8 +16,7 @@ export default async function helpCommand(client: Client, message: Message, args
         helpFileNames.map((name) => fs.readFile(`${COMMAND_HELP_DIR}/${name}`))
       );
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.log(`Error when reading a help file: ${error}`);
+      console.error(`Error when reading a help file: ${error}`);
       await message.channel?.sendMessage('Could not retreive help files, soz :(');
       return;
     }
@@ -29,6 +28,7 @@ export default async function helpCommand(client: Client, message: Message, args
 
     await message.channel?.sendMessage(
       `Stockfish. A chess bot for Revolt.
+      If you want help about a specific command, use this syntax instead: /help <command>
       Commands:
 
         ${helpFiles.map(([name, help]) => `/${name.replace('.short.txt', '')}: ${help}`).join('').trim()}`
@@ -42,7 +42,6 @@ export default async function helpCommand(client: Client, message: Message, args
   try {
     helpFileContents = await fs.readFile(`${COMMAND_HELP_DIR}/${command}.long.txt`);
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.log(`Error when reading a help file: ${error}`);
     await message.channel?.sendMessage('Could not retreive help files, soz :(');
     return;

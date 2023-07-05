@@ -5,7 +5,11 @@ import ChessGame, { PieceColor, PieceType } from '$lib/ChessGame';
 import { Engine } from 'node-uci';
 import { MoveResult } from 'chess-game/pkg/chess_game';
 
-export default async function playChessCommand(client: Client, message: Message, args: string[]) {
+export default async function playChessCommand(
+  client: Client,
+  message: Message,
+  args: string[]
+): Promise<void> {
   const originalMessageID = message._id;
   const player1ID = message.author_id;
   const channel = message.channel;
@@ -108,23 +112,19 @@ export default async function playChessCommand(client: Client, message: Message,
     player2ID = message.mention_ids[0];
   }
 
-  const stockfishOptions: StockfishOptions = {
-    Threads: os.cpus().length.toString(),
-    // eslint-disable-next-line camelcase
-    UCI_Chess960: 'false',
-    // eslint-disable-next-line camelcase
-    UCI_Elo: '150',
-    Hash: '16',
-    // eslint-disable-next-line camelcase
-    UCI_LimitStrength: 'true',
-    MultiPV: '1',
-    Ponder: 'true',
-    'Skill Level': '20',
-    'Slow Mover': '100',
-    'Use NNUE': 'true',
-  };
-
   if (player2ID === client.user?._id) {
+    const stockfishOptions: StockfishOptions = {
+      Threads: os.cpus().length.toString(),
+      UCI_Elo: '150',
+      Hash: '16',
+      UCI_LimitStrength: 'true',
+      MultiPV: '1',
+      Ponder: 'true',
+      'Skill Level': '20',
+      'Slow Mover': '100',
+      'Use NNUE': 'true',
+    };
+
     await promptYesOrNo(
       async (yes) => {
         if (!yes) {
@@ -193,7 +193,7 @@ async function playChessGame(
   player1Color: PieceColor,
   channel?: Channel,
   stockfishOptions?: StockfishOptions
-) {
+): Promise<void> {
   let engine: Engine | undefined;
 
   const player2Color: PieceColor = player1Color === 'white' ? 'black' : 'white';
@@ -208,7 +208,6 @@ async function playChessGame(
       await engine.setoption('Ponder', stockfishOptions.Ponder);
       await engine.setoption('MultiPV', stockfishOptions.MultiPV);
       await engine.setoption('Use NNUE', stockfishOptions['Use NNUE']);
-      await engine.setoption('UCI_Chess960', stockfishOptions.UCI_Chess960);
       await engine.setoption('UCI_LimitStrength', stockfishOptions.UCI_LimitStrength);
       await engine.setoption('UCI_Elo', stockfishOptions.UCI_Elo);
       await engine.setoption('Skill Level', stockfishOptions['Skill Level']);
@@ -232,7 +231,7 @@ async function playChessGame(
 
     const move =
       engine !== undefined && currentTurn === 2
-        ? await generateBestMove(engine)
+        ? await generateBestMove(engine, channel)
         : await promptChessMove({
             client,
             channel,
@@ -261,18 +260,22 @@ async function playChessGame(
     const result = chessGame.applyMove(start, end, promotion);
 
     switch (result) {
-      case MoveResult.InvalidMove:
+      case MoveResult.Invalid:
         await channel?.sendMessage('This is an invalid move.');
         continue mainLoop;
       case MoveResult.Checkmate:
-        await channel?.sendMessage(`Win by checkmate for <@${playerID}>`);
-        break mainLoop;
-      case MoveResult.Stalemate:
-        await channel?.sendMessage('Draw in stalemate.');
+        await channel?.sendMessage(`Win by checkmate for <@${playerID}>!`);
         break mainLoop;
       case MoveResult.Check:
         await channel?.sendMessage('Check!');
         break;
+      case MoveResult.Stalemate:
+        await channel?.sendMessage('Draw in stalemate.');
+        break mainLoop;
+    }
+
+    if (engine !== undefined) {
+      engine.position(chessGame.fen);
     }
 
     currentTurn = currentTurn === 1 ? 2 : 1;
@@ -285,7 +288,6 @@ interface StockfishOptions {
   Ponder: string;
   MultiPV: string;
   'Use NNUE': string;
-  UCI_Chess960: string;
   UCI_LimitStrength: string;
   UCI_Elo: string;
   'Skill Level': string;
@@ -336,7 +338,8 @@ async function promptChessMove({
   }
 }
 
-async function generateBestMove(engine: Engine): Promise<string> {
+async function generateBestMove(engine: Engine, channel?: Channel): Promise<string> {
   const { bestmove } = await engine.go({ depth: 15 });
+  await channel?.sendMessage(`I will play... ${bestmove}!`);
   return bestmove;
 }

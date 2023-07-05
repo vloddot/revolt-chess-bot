@@ -9,14 +9,13 @@
     "root": true,
     "rules": {
         "no-constant-condition": "off",
-        "no-console": "warn",
         "block-scoped-var": "warn",
-        "camelcase": "warn",
         "class-methods-use-this": "warn",
         "complexity": "warn",
         "dot-notation": "warn",
         "eqeqeq": "warn",
         "for-direction": "warn",
+        "@typescript-eslint/explicit-function-return-type": "error",
         "no-else-return": "warn"
     }
 }

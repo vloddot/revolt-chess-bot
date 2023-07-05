@@ -1,5 +1,5 @@
 import { createCanvas, loadImage } from 'canvas';
-import { MoveResult, ChessGame as WASMChessGame } from '../../chess-game/pkg/chess_game';
+import { MoveResult, SQ, ChessGame as WASMChessGame } from 'chess-game/pkg/chess_game';
 
 export type PieceColor = 'white' | 'black';
 export type Row<T> = Array<T | null>;
@@ -101,18 +101,11 @@ export default class ChessGame {
   }
 
   applyMove(start: string, target: string, promotion?: string): MoveResult {
-    let move = start + target;
-    if (promotion !== undefined) {
-      move += promotion;
-    }
-
-    const result = this.inner.apply_move(move);
-
-    if (result === MoveResult.InvalidMove) {
-      this.lastMove = move;
-    }
-
-    return result;
+    return this.inner.applyMove(
+      new SQ(start[0], Number(start[1])),
+      new SQ(target[0], Number(target[1])),
+      promotion
+    );
   }
 
   async generateBoardPNG(perspectiveColor: PieceColor): Promise<Buffer> {
