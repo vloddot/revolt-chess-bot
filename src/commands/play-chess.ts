@@ -1,9 +1,8 @@
 import os from 'os';
 import { Channel, Client, Message } from 'revolt.js';
 import { prompt, promptYesOrNo, uploadToAutumn } from '$lib/helpers';
-import ChessGame, { PieceColor, PieceType } from '$lib/ChessGame';
 import { Engine } from 'node-uci';
-import { MoveResult } from 'chess-game/pkg/chess_game';
+import { MoveResult, ChessGame, Player, SQ } from 'chess-game/pkg/chess_game';
 
 export default async function playChessCommand(
   client: Client,
@@ -15,14 +14,14 @@ export default async function playChessCommand(
   const channel = message.channel;
   let player2ID: string | undefined;
 
-  function getColor(response: string): PieceColor | undefined {
+  function getColor(response: string): Player | undefined {
     switch (response.toLowerCase()) {
       case 'white':
-        return 'white';
+        return Player.White;
       case 'black':
-        return 'black';
+        return Player.Black;
       case 'random':
-        return Math.random() > 0.5 ? 'white' : 'black';
+        return Math.random() > 0.5 ? Player.White : Player.Black;
       default:
         return undefined;
     }
@@ -37,7 +36,7 @@ export default async function playChessCommand(
     return;
   }
 
-  async function promptColor(): Promise<PieceColor> {
+  async function promptColor(): Promise<Player> {
     while (true) {
       const message = await prompt(client, channel, player1ID, {
         content: 'What color do you want to play as? Expect either "White", "Black", or "Random".',
@@ -64,7 +63,7 @@ export default async function playChessCommand(
     }
   }
 
-  let player1Color: PieceColor = 'white';
+  let player1Color: Player = Player.White;
 
   if (args.length >= 2) {
     const response = getColor(args[1]);
@@ -190,13 +189,13 @@ async function playChessGame(
   client: Client,
   player1ID: string,
   player2ID: string,
-  player1Color: PieceColor,
+  player1Color: Player,
   channel?: Channel,
   stockfishOptions?: StockfishOptions
 ): Promise<void> {
   let engine: Engine | undefined;
 
-  const player2Color: PieceColor = player1Color === 'white' ? 'black' : 'white';
+  const player2Color: Player = player1Color === Player.White ? Player.Black : Player.White;
 
   if (stockfishOptions !== undefined) {
     if (player2ID === client.user?._id) {
@@ -217,17 +216,17 @@ async function playChessGame(
   }
 
   await channel?.sendMessage(
-    `Starting chess game between <@${player1ID}> (${player1Color}) and <@${player2ID}> (${player2Color})`
+    `Starting chess game between <@${player1ID}> (${player1Color === Player.White ? 'white' : 'black'}) and <@${player2ID}> (${player2Color === Player.White ? 'white' : 'black'})`
   );
 
   const chessGame = new ChessGame();
 
-  let currentTurn = player1Color === 'white' ? 1 : 2;
+  let currentTurn = player1Color === Player.White ? 1 : 2;
 
   mainLoop: while (true) {
     const playerID = currentTurn === 1 ? player1ID : player2ID;
 
-    const png = await chessGame.generateBoardPNG(currentTurn === 1 ? player1Color : player2Color);
+    const png = chessGame.generateBoardPNG(currentTurn === 1 ? player1Color : player2Color);
 
     const move =
       engine !== undefined && currentTurn === 2
@@ -243,21 +242,9 @@ async function playChessGame(
       break;
     }
 
-    const [start, end] = [move.slice(0, 2), move.slice(2, 4)];
+    const [start, target] = [move.slice(0, 2), move.slice(2, 4)];
 
-    let promotion: PieceType | undefined;
-    if (move.length === 5) {
-      const promotionMapping = {
-        r: PieceType.rook,
-        b: PieceType.bishop,
-        n: PieceType.knight,
-        q: PieceType.queen,
-      };
-
-      promotion = promotionMapping[move[4].toLowerCase() as keyof typeof promotionMapping];
-    }
-
-    const result = chessGame.applyMove(start, end, promotion);
+    const result = chessGame.applyMove(new SQ(start[0], Number(start[1])), new SQ(target[0], Number(target[1])), move[4]);
 
     switch (result) {
       case MoveResult.Invalid:
@@ -301,28 +288,37 @@ async function promptChessMove({
   playerID,
 }: {
   client: Client;
-  png: Buffer;
+  png: Uint8Array;
   channel: Channel | undefined;
   playerID: string;
 }): Promise<string | null> {
   const attachment = await uploadToAutumn(client, png, 'chess.png', 'image/png');
+  await channel?.sendMessage({
+    content: `It's your turn, <@${playerID}>.`,
+    attachments: [attachment],
+  });
 
   while (true) {
-    const message = await prompt(client, channel, playerID, {
-      content: `It's your turn, <@${playerID}>.`,
-      attachments: [attachment],
-    });
+    const message = await prompt(client, channel, playerID);
 
     const content = message.content?.trim();
-
-    const matches = content?.match(/\b([a-h][1-8]){2}\b/gi);
 
     if (content?.match(/\b(abort|resign)\b/gi)) {
       await channel?.sendMessage('Aborting chess game.');
       return null;
     }
 
-    if (content === undefined || !matches) {
+    const args = content?.split(' ');
+
+    if (args?.[0] !== '/move') {
+      continue;
+    }
+
+    const move = args?.[1];
+
+    const matches = move?.match(/([a-h][1-8]){2}/);
+
+    if (matches === null || matches.length === 0) {
       await channel?.sendMessage({
         content: `You must send a message in [Pure Algebraic Coordinate Notation](<https://www.chessprogramming.org/Algebraic_Chess_Notation#Pure_coordinate_notation>), meaning put the starting square first, then the ending square.
                     Like this: e2e4. Even castling is put in as something like e1g1 instead of O-O or O-O-O.

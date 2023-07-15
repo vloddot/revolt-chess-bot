@@ -1,7 +1,8 @@
+import fs from 'fs';
 import axios from 'axios';
 import FormData from 'form-data';
 import { Channel, Client, Message } from 'revolt.js';
-import type { DataMessageSend } from './types';
+import type { DataMessageSend } from '$lib/types';
 
 export async function prompt(
   client: Client,
@@ -48,22 +49,21 @@ export async function promptYesOrNo(
 
 export async function uploadToAutumn(
   client: Client,
-  contents: string | Buffer,
+  contents: Uint8Array,
   filename: string,
   contentType: string,
   tag = 'attachments'
 ): Promise<string> {
-  const formData = new FormData();
-
-  formData.append('file', contents, {
-    filename,
-  });
-
   return new Promise((resolve, reject) => {
     if (!client.configuration?.features.autumn.enabled) {
       reject('Autumn support is not enabled.');
     }
 
+  const formData = new FormData();
+
+  formData.append('file', Buffer.from(contents), {
+    filename,
+  });
     axios
       .post(`${client.configuration?.features.autumn.url}/${tag}`, formData, {
         method: 'POST',
@@ -74,4 +74,8 @@ export async function uploadToAutumn(
       .then((response) => resolve(response.data.id))
       .catch((error) => reject(error));
   });
+}
+
+export function load_asset(path: string): Uint8Array {
+  return fs.readFileSync(`assets/${path}`);
 }

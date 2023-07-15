@@ -2,8 +2,7 @@ import { Client } from 'revolt.js';
 import playChessCommand from '$commands/play-chess';
 import dotenv from 'dotenv';
 import helpCommand from '$commands/help';
-import { ChessGame, Player } from 'chess-game/pkg/chess_game';
-import { readFile, writeFile } from 'fs/promises';
+import { uploadToAutumn } from '$lib/helpers';
 
 export interface StartBotOptions {
   onready?(client: Client): unknown;
@@ -29,13 +28,22 @@ export default async function startBot(token: string, options?: StartBotOptions)
 
     const command = args[0];
 
-    switch (command) {
-      case '/play-chess':
-        await playChessCommand(client, message, args);
-        break;
-      case '/help':
-        await helpCommand(client, message, args);
-        break;
+    try {
+      switch (command) {
+        case '/play-chess':
+          await playChessCommand(client, message, args);
+          break;
+        case '/help':
+          await helpCommand(client, message, args);
+          break;
+      }
+    } catch (error) {
+      const attachment = await uploadToAutumn(client, new TextEncoder().encode(String(error)), 'error.log', 'text')
+      await message.channel?.sendMessage({
+        content: 'An error occured, sorry for the inconvenience, error was saved in a log file:',
+        attachments: [attachment],
+      });
+      console.error(error);
     }
   });
 
@@ -50,14 +58,5 @@ if (require.main?.id === module.id) {
     process.exit(1);
   }
 
-  startBot(process.env.BOT_TOKEN, {
-    async onready() {
-      const game = new ChessGame();
-
-      await writeFile(
-        '.temp/test.png',
-        game.generateBoardPNG(Player.White, await readFile('OpenSans.ttf'))
-      );
-    },
-  });
+  startBot(process.env.BOT_TOKEN);
 }
